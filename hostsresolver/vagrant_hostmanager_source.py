@@ -16,6 +16,9 @@ from hostsresolver.hostsfile_source import parse_content
 from hostsresolver.vagrant_source import list_machines, lookup_vagrant_root
 from hostsresolver.cache import update
 from hostsresolver.cache import install as _install_cache
+from pathlib import Path
+import json
+
 
 
 def known_hosts(vagrant_root, name=None):
@@ -23,9 +26,15 @@ def known_hosts(vagrant_root, name=None):
     vagrant = Vagrant(vagrant_root)
 
     machines = list_machines(vagrant_root)
-    name = name if name in machines else machines[0]
+    cache = {}
+    for machine in machines:
+        with open(Path(vagrant_root) / f'.vagrant/machines/{machine}/openstack/cached_metadata') as f:
+            json_content = json.loads(f.read())
+            addresses = next(iter(json_content['addresses']['public']), None)
+            if addresses:
+                cache[machine] = addresses['addr']
+    return cache
 
-    return parse_content(vagrant._run_vagrant_command(('ssh', name, '-c', 'cat /etc/hosts')))
 
 
 def install(vagrant_root=None):
